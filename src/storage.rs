@@ -80,3 +80,12 @@ where
         <T as StorageWrite<K>>::remove(self, key)
     }
 }
+
+impl<'a, K, T> StorageTemp<K> for &'a mut T
+where
+    T: StorageTemp<K>,
+{
+    fn ttl(&self, key: &K) -> Result<Duration, Self::Error> {
+        <T as StorageTemp<K>>::ttl(self, key)
+    }
+}
