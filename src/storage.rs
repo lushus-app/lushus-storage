@@ -1,91 +1,120 @@
-use std::time::Duration;
+use std::{borrow::Cow, time::Duration};
 
-use serde::{de::DeserializeOwned, Serialize};
+use crate::Table;
 
 pub trait Storage {
     type Error;
 }
 
-pub trait StorageRead<K>: Storage {
-    fn get<T: DeserializeOwned>(&self, key: &K) -> Result<Option<T>, Self::Error>;
-    fn exists(&self, key: &K) -> Result<bool, Self::Error>;
+pub trait StorageRead<TableType: Table>: Storage {
+    fn get(
+        &self,
+        key: &TableType::Key,
+    ) -> Result<Option<Cow<'_, TableType::OwnedValue>>, Self::Error>;
+    fn exists(&self, key: &TableType::Key) -> Result<bool, Self::Error>;
 }
 
-pub trait StorageWrite<K>: Storage {
-    fn insert<V: Serialize + DeserializeOwned>(
+pub trait StorageWrite<TableType: Table>: Storage {
+    fn insert(
         &mut self,
-        key: &K,
-        value: &V,
-    ) -> Result<Option<V>, Self::Error>;
-    fn remove<V: DeserializeOwned>(&mut self, key: &K) -> Result<Option<V>, Self::Error>;
+        key: &TableType::Key,
+        value: &TableType::Value,
+    ) -> Result<Option<TableType::OwnedValue>, Self::Error>;
+    fn remove(
+        &mut self,
+        key: &TableType::Key,
+    ) -> Result<Option<TableType::OwnedValue>, Self::Error>;
 }
 
-pub trait StorageTemp<K>: Storage {
-    fn ttl(&self, key: &K) -> Result<Duration, Self::Error>;
+pub trait StorageTemp<TableType: Table>: Storage {
+    fn ttl(&self, key: &TableType::Key) -> Result<Duration, Self::Error>;
 }
 
-impl<'a, T> Storage for &'a T
+impl<T> Storage for &T
 where
     T: Storage,
 {
     type Error = T::Error;
 }
 
-impl<'a, T> Storage for &'a mut T
+impl<T> Storage for &mut T
 where
     T: Storage,
 {
     type Error = T::Error;
 }
 
-impl<'a, K, T> StorageRead<K> for &'a T
+impl<T, TableType> StorageRead<TableType> for &T
 where
-    T: StorageRead<K>,
+    T: StorageRead<TableType>,
+    TableType: Table,
 {
-    fn get<V: DeserializeOwned>(&self, key: &K) -> Result<Option<V>, Self::Error> {
-        <T as StorageRead<K>>::get(self, key)
+    fn get(
+        &self,
+        key: &TableType::Key,
+    ) -> Result<Option<Cow<'_, TableType::OwnedValue>>, Self::Error> {
+        <T as StorageRead<TableType>>::get(self, key)
     }
 
-    fn exists(&self, key: &K) -> Result<bool, Self::Error> {
-        <T as StorageRead<K>>::exists(self, key)
+    fn exists(&self, key: &TableType::Key) -> Result<bool, Self::Error> {
+        <T as StorageRead<TableType>>::exists(self, key)
     }
 }
 
-impl<'a, K, T> StorageRead<K> for &'a mut T
+impl<T, TableType> StorageRead<TableType> for &mut T
 where
-    T: StorageRead<K>,
+    T: StorageRead<TableType>,
+    TableType: Table,
 {
-    fn get<V: DeserializeOwned>(&self, key: &K) -> Result<Option<V>, Self::Error> {
-        <T as StorageRead<K>>::get(self, key)
+    fn get(
+        &self,
+        key: &TableType::Key,
+    ) -> Result<Option<Cow<'_, TableType::OwnedValue>>, Self::Error> {
+        <T as StorageRead<TableType>>::get(self, key)
     }
 
-    fn exists(&self, key: &K) -> Result<bool, Self::Error> {
-        <T as StorageRead<K>>::exists(self, key)
+    fn exists(&self, key: &TableType::Key) -> Result<bool, Self::Error> {
+        <T as StorageRead<TableType>>::exists(self, key)
     }
 }
 
-impl<'a, K, T> StorageWrite<K> for &'a mut T
+impl<T, TableType> StorageWrite<TableType> for &mut T
 where
-    T: StorageWrite<K>,
+    T: StorageWrite<TableType>,
+    TableType: Table,
 {
-    fn insert<V: Serialize + DeserializeOwned>(
+    fn insert(
         &mut self,
-        key: &K,
-        value: &V,
-    ) -> Result<Option<V>, Self::Error> {
-        <T as StorageWrite<K>>::insert(self, key, value)
+        key: &TableType::Key,
+        value: &TableType::Value,
+    ) -> Result<Option<TableType::OwnedValue>, Self::Error> {
+        <T as StorageWrite<TableType>>::insert(self, key, value)
     }
 
-    fn remove<V: DeserializeOwned>(&mut self, key: &K) -> Result<Option<V>, Self::Error> {
-        <T as StorageWrite<K>>::remove(self, key)
+    fn remove(
+        &mut self,
+        key: &TableType::Key,
+    ) -> Result<Option<TableType::OwnedValue>, Self::Error> {
+        <T as StorageWrite<TableType>>::remove(self, key)
     }
 }
 
-impl<'a, K, T> StorageTemp<K> for &'a mut T
+impl<T, TableType> StorageTemp<TableType> for &T
 where
-    T: StorageTemp<K>,
+    T: StorageTemp<TableType>,
+    TableType: Table,
 {
-    fn ttl(&self, key: &K) -> Result<Duration, Self::Error> {
-        <T as StorageTemp<K>>::ttl(self, key)
+    fn ttl(&self, key: &TableType::Key) -> Result<Duration, Self::Error> {
+        <T as StorageTemp<TableType>>::ttl(self, key)
+    }
+}
+
+impl<T, TableType> StorageTemp<TableType> for &mut T
+where
+    T: StorageTemp<TableType>,
+    TableType: Table,
+{
+    fn ttl(&self, key: &TableType::Key) -> Result<Duration, Self::Error> {
+        <T as StorageTemp<TableType>>::ttl(self, key)
     }
 }
